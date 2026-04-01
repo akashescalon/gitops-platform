@@ -1,0 +1,83 @@
+# =============================================================================
+# Namespace Strategy
+# Pattern: {env}-{service-name}
+# This gives: per-service isolation + per-env isolation + clear RBAC boundaries
+# =============================================================================
+
+# DEV namespaces
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev-user-service
+  labels:
+    environment: dev
+    team: backend
+    cost-center: engineering
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev-payment-service
+  labels:
+    environment: dev
+    team: payments
+    cost-center: engineering
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev-order-service
+  labels:
+    environment: dev
+    team: orders
+    cost-center: engineering
+---
+# STAGING namespaces
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging-user-service
+  labels:
+    environment: staging
+    team: backend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging-payment-service
+  labels:
+    environment: staging
+    team: payments
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging-order-service
+  labels:
+    environment: staging
+    team: orders
+---
+# PROD namespaces
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod-user-service
+  labels:
+    environment: prod
+    team: backend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod-payment-service
+  labels:
+    environment: prod
+    team: payments
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod-order-service
+  labels:
+    environment: prod
+    team: orders

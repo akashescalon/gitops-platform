@@ -1,0 +1,36 @@
+serviceName: payment-service
+environment: staging
+
+image:
+  repository: 222222222222.dkr.ecr.us-east-1.amazonaws.com/payment-service
+  tag: "def5678"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::222222222222:role/staging-payment-service-irsa
+
+env:
+  - name: LOG_LEVEL
+    value: "info"
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

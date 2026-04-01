@@ -1,0 +1,38 @@
+# =============================================================================
+# apps/dev/user-service.yaml  — Child Application (managed by root-app)
+# =============================================================================
+# This file lives in apps/dev/ which the root-app watches.
+# Argo CD discovers this file and creates the Application object automatically.
+# It then deploys the user-service Helm chart with dev-specific values.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: user-service-dev
+  namespace: argocd
+  labels:
+    app: user-service
+    environment: dev
+    team: backend
+spec:
+  project: dev-project
+
+  source:
+    repoURL: git@gitlab.company.com:platform/platform-config-repo.git
+    targetRevision: main
+    path: helm-charts/generic-service       # The shared reusable Helm chart
+    helm:
+      valueFiles:
+        - values.yaml                        # Base defaults
+        - ../../clusters/dev/user-service/values-dev.yaml   # Dev overrides
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev-user-service              # Isolated namespace per service per env
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

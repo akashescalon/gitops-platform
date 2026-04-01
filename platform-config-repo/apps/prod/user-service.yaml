@@ -1,0 +1,38 @@
+# ============================================================
+# FILE: platform-config-repo/apps/prod/user-service.yaml
+# PURPOSE: Tells Argo CD HOW to deploy user-service to PROD
+# WHO CREATES THIS: Platform team (one-time setup)
+# WHO UPDATES THIS: Rarely - only if Argo CD config changes
+# WHAT TRIGGERS SYNC: A commit to clusters/prod/user-service/values-prod.yaml
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: user-service-prod
+  namespace: argocd
+  labels:
+    app: user-service
+    environment: prod
+spec:
+  project: prod-project
+
+  source:
+    repoURL: git@gitlab.company.com:platform/platform-config-repo.git
+    targetRevision: main
+    # STEP 1: Argo CD reads the Helm chart from this path
+    path: helm-charts/generic-service
+    helm:
+      valueFiles:
+        # STEP 2: First load base defaults
+        - values.yaml
+        # STEP 3: Then overlay prod-specific values (replicas, resources, image tag)
+        - ../../clusters/prod/user-service/values-prod.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod-user-service   # Deploys into THIS namespace
+
+  syncPolicy:
+    # PROD = NO auto-sync. Human must approve every deployment.
+    syncOptions:
+      - CreateNamespace=true

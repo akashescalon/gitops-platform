@@ -1,0 +1,46 @@
+serviceName: payment-service
+environment: dev
+
+image:
+  repository: 111111111111.dkr.ecr.us-east-1.amazonaws.com/payment-service
+  tag: "def5678"           # <-- UPDATED BY CI PIPELINE
+  pullPolicy: Always
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    cpu: "200m"
+    memory: "256Mi"
+
+autoscaling:
+  enabled: false
+
+ingress:
+  enabled: true
+  className: "alb"
+  hosts:
+    - host: payment-service.dev.company.internal
+      paths:
+        - path: /
+          pathType: Prefix
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::111111111111:role/dev-payment-service-irsa
+
+env:
+  - name: LOG_LEVEL
+    value: "debug"
+  - name: STRIPE_SECRET_KEY
+    valueFrom:
+      secretKeyRef:
+        name: payment-secrets
+        key: stripe-key
+
+podDisruptionBudget:
+  enabled: false

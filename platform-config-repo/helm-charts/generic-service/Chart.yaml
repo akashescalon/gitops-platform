@@ -1,0 +1,15 @@
+apiVersion: v2
+name: generic-service
+description: |
+  A reusable Helm chart for all microservices in the platform.
+  Used by user-service, payment-service, order-service and any future services.
+type: application
+version: 1.0.0
+appVersion: "latest"
+keywords:
+  - microservice
+  - platform
+  - generic
+maintainers:
+  - name: Platform Team
+    email: platform@company.com

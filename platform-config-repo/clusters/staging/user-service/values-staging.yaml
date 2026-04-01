@@ -1,0 +1,67 @@
+# =============================================================================
+# clusters/staging/user-service/values-staging.yaml
+# STAGING — closer to prod, higher replicas, stricter resource limits
+# =============================================================================
+
+serviceName: user-service
+environment: staging
+
+image:
+  repository: 222222222222.dkr.ecr.us-east-1.amazonaws.com/user-service
+  tag: "abc1234"           # <-- UPDATED BY CI after dev promotion
+  pullPolicy: IfNotPresent
+
+replicaCount: 2            # Multi-replica for realistic testing
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  enabled: true
+  className: "alb"
+  hosts:
+    - host: user-service.staging.company.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::222222222222:role/staging-user-service-irsa
+
+env:
+  - name: LOG_LEVEL
+    value: "info"
+  - name: DB_HOST
+    valueFrom:
+      secretKeyRef:
+        name: user-service-db-secret
+        key: host
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values: ["user-service"]
+          topologyKey: kubernetes.io/hostname

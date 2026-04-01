@@ -1,0 +1,53 @@
+# =============================================================================
+# bootstrap/dev/root-app.yaml
+# =============================================================================
+# This is the ROOT application for the DEV cluster.
+# It is the ONLY app manually applied to Argo CD: `kubectl apply -f root-app.yaml`
+# After that, Argo CD self-manages everything else — App-of-Apps pattern.
+#
+# PATTERN EXPLAINED:
+# root-app → watches apps/dev/ directory → finds child Application YAMLs
+#           → deploys user-service, payment-service, order-service apps
+#           → each child app watches helm-charts/ → deploys actual Kubernetes workloads
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-dev
+  namespace: argocd
+  labels:
+    environment: dev
+    managed-by: gitops
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io   # cascade delete
+  annotations:
+    argocd.argoproj.io/description: |
+      Root application for DEV cluster. Manages all child applications
+      via App-of-Apps pattern. Source of truth: platform-config-repo.
+spec:
+  project: dev-project
+
+  source:
+    repoURL: git@gitlab.company.com:platform/platform-config-repo.git
+    targetRevision: main
+    path: apps/dev        # <-- Argo CD watches THIS folder for child app YAMLs
+
+  destination:
+    server: https://kubernetes.default.svc   # Deploy to local cluster (where ArgoCD runs)
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true          # Remove resources deleted from Git
+      selfHeal: true       # Revert manual kubectl changes
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

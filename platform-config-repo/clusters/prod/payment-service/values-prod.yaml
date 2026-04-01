@@ -1,0 +1,46 @@
+serviceName: payment-service
+environment: prod
+
+image:
+  repository: 333333333333.dkr.ecr.us-east-1.amazonaws.com/payment-service
+  tag: "def5678"
+  pullPolicy: IfNotPresent
+
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "1Gi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 15
+  targetCPUUtilizationPercentage: 55   # Payment is critical, scale early
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::333333333333:role/prod-payment-service-irsa
+
+env:
+  - name: LOG_LEVEL
+    value: "warn"
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app
+              operator: In
+              values: ["payment-service"]
+        topologyKey: topology.kubernetes.io/zone

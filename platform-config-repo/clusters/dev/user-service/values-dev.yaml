@@ -1,0 +1,87 @@
+# ============================================================
+# FILE: clusters/dev/user-service/values-dev.yaml
+#
+# PURPOSE: Dev-environment overrides for user-service.
+#          These values MERGE ON TOP of helm-charts/generic-service/values.yaml
+#
+# WHO READS THIS: Argo CD (when deploying to dev cluster)
+# WHO WRITES THIS:
+#   - image.tag field → CI pipeline (automated, on every build)
+#   - Everything else → Platform team (manual, via PR)
+#
+# MERGE PRIORITY:
+#   helm-charts/generic-service/values.yaml   ← lowest priority (base)
+#   THIS FILE                                  ← higher priority (overrides base)
+#
+# ONLY set what differs from base values.yaml.
+# Anything not listed here inherits from base.
+# ============================================================
+
+# ----- Identity (REQUIRED - tells chart which service this is) -----
+serviceName: user-service     # Used as: Deployment name, label selector, SA name
+environment: dev              # Injected as env var SERVICE_ENV into the container
+
+# ----- Image (image.tag is updated by CI on every build) ----------
+image:
+  # ECR URL for the dev AWS account (111111111111)
+  repository: 111111111111.dkr.ecr.us-east-1.amazonaws.com/user-service
+  tag: "abc1234"              # <-- CI PIPELINE UPDATES THIS LINE automatically
+                              #     via: sed -i 's|tag: ".*"|tag: "newsha"|' this-file.yaml
+  pullPolicy: Always          # Always pull in dev (ensures latest image is used)
+
+# ----- Scale (dev: cheap, single replica) -------------------------
+replicaCount: 1               # 1 replica in dev to save cost
+                              # (prod uses 3 replicas for HA)
+
+# ----- Resources (lower in dev) -----------------------------------
+resources:
+  requests:
+    cpu: "50m"                # Lower than base (100m) to save dev cluster resources
+    memory: "64Mi"
+  limits:
+    cpu: "200m"
+    memory: "256Mi"
+
+# ----- Autoscaling (disabled in dev) ------------------------------
+autoscaling:
+  enabled: false              # No HPA in dev — waste of resources
+
+# ----- Networking -------------------------------------------------
+service:
+  type: ClusterIP             # Internal only — ingress handles external traffic
+  port: 80
+  targetPort: 8080            # The port your app listens on inside the container
+
+ingress:
+  enabled: true
+  className: "alb"            # AWS ALB Ingress Controller
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: user-service.dev.company.internal
+      paths:
+        - path: /
+          pathType: Prefix
+
+# ----- AWS IAM Role (IRSA — no static credentials) ----------------
+serviceAccount:
+  create: true
+  annotations:
+    # This annotation tells EKS: "pods using this SA get temp credentials for this IAM role"
+    # The IAM role has only the permissions user-service needs (e.g. read from specific S3 bucket)
+    eks.amazonaws.com/role-arn: arn:aws:iam::111111111111:role/dev-user-service-irsa
+
+# ----- Environment Variables injected into the container ----------
+env:
+  - name: LOG_LEVEL
+    value: "debug"            # Verbose logging in dev
+  - name: DB_HOST
+    valueFrom:
+      secretKeyRef:           # Read from K8s Secret (created by External Secrets Operator)
+        name: user-service-db-secret
+        key: host
+
+# ----- High Availability (disabled in dev) ------------------------
+podDisruptionBudget:
+  enabled: false              # PDB only matters when running multiple replicas

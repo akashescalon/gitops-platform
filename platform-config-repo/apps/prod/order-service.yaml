@@ -1,0 +1,28 @@
+# ============================================================
+# FILE: platform-config-repo/apps/prod/order-service.yaml
+# PURPOSE: Tells Argo CD HOW to deploy order-service to PROD
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: order-service-prod
+  namespace: argocd
+  labels:
+    app: order-service
+    environment: prod
+spec:
+  project: prod-project
+  source:
+    repoURL: git@gitlab.company.com:platform/platform-config-repo.git
+    targetRevision: main
+    path: helm-charts/generic-service
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../clusters/prod/order-service/values-prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod-order-service
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

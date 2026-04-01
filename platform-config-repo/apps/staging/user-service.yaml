@@ -1,0 +1,31 @@
+# ============================================================
+# FILE: platform-config-repo/apps/staging/user-service.yaml
+# PURPOSE: Tells Argo CD HOW to deploy user-service to STAGING
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: user-service-staging
+  namespace: argocd
+  labels:
+    app: user-service
+    environment: staging
+spec:
+  project: staging-project
+  source:
+    repoURL: git@gitlab.company.com:platform/platform-config-repo.git
+    targetRevision: main
+    path: helm-charts/generic-service
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../clusters/staging/user-service/values-staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging-user-service
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

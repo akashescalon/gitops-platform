@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: payment-service-dev
+  namespace: argocd
+  labels:
+    app: payment-service
+    environment: dev
+    team: payments
+spec:
+  project: dev-project
+
+  source:
+    repoURL: git@gitlab.company.com:platform/platform-config-repo.git
+    targetRevision: main
+    path: helm-charts/generic-service
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../clusters/dev/payment-service/values-dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev-payment-service
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

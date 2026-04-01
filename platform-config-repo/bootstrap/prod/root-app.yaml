@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-prod
+  namespace: argocd
+  labels:
+    environment: prod
+    managed-by: gitops
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: prod-project
+
+  source:
+    repoURL: git@gitlab.company.com:platform/platform-config-repo.git
+    targetRevision: main
+    path: apps/prod
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    # PROD: No automated sync — requires manual approval or PR merge
+    automated:
+      prune: false         # Never auto-delete prod resources
+      selfHeal: true       # Drift detection + alert, but don't auto-sync
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m

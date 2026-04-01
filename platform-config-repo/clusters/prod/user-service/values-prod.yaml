@@ -1,0 +1,94 @@
+# ============================================================
+# FILE: clusters/prod/user-service/values-prod.yaml
+#
+# PURPOSE: PRODUCTION overrides for user-service.
+#          Maximum availability, security, and performance.
+#
+# WHO READS THIS: Argo CD (prod cluster, manual sync only)
+# WHO WRITES THIS:
+#   - image.tag field → CI pipeline (after manual approval)
+#   - Everything else → Platform team via reviewed PR
+#
+# KEY DIFFERENCES vs dev:
+#   - replicaCount: 3 (HA across 3 AZs)
+#   - autoscaling: enabled, up to 20 replicas
+#   - podDisruptionBudget: enabled (min 2 pods always up)
+#   - affinity: pods MUST spread across availability zones
+#   - resources: larger requests/limits
+#   - LOG_LEVEL: warn (performance, not debug)
+#   - pullPolicy: IfNotPresent (don't pull if already cached)
+# ============================================================
+
+serviceName: user-service
+environment: prod
+
+image:
+  repository: 333333333333.dkr.ecr.us-east-1.amazonaws.com/user-service
+  tag: "abc1234"              # <-- UPDATED BY CI after manual prod approval
+  pullPolicy: IfNotPresent    # Use cached image if tag already pulled
+
+replicaCount: 3               # Min 3 for HA; HPA will scale above this
+
+resources:
+  requests:
+    cpu: "200m"               # 2x dev — predictable baseline for HPA
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"              # Allow burst to 1 vCPU
+    memory: "1Gi"
+
+autoscaling:
+  enabled: true               # HPA scales based on CPU/memory
+  minReplicas: 3              # Never go below 3
+  maxReplicas: 20             # Can handle 20x normal traffic spikes
+  targetCPUUtilizationPercentage: 60   # Scale earlier in prod (60% not 70%)
+  targetMemoryUtilizationPercentage: 70
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:333333333333:certificate/xxxxx
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+  hosts:
+    - host: user-service.company.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::333333333333:role/prod-user-service-irsa
+
+env:
+  - name: LOG_LEVEL
+    value: "warn"             # Minimal logging in prod for performance
+  - name: DB_HOST
+    valueFrom:
+      secretKeyRef:
+        name: user-service-db-secret
+        key: host
+
+# PDB: Kubernetes will never terminate more pods than this allows
+# Example: during a node upgrade, if you have 3 pods, K8s ensures at least 2 stay up
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2             # At least 2 pods must always be running
+
+# Anti-affinity: FORCE pods onto different availability zones
+# If zone us-east-1a goes down, pods in 1b and 1c are still serving traffic
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:   # HARD requirement (not preferred)
+      - labelSelector:
+          matchExpressions:
+            - key: app
+              operator: In
+              values: ["user-service"]
+        topologyKey: topology.kubernetes.io/zone      # Spread across AZs
+
+nodeSelector:
+  node-type: application      # Only schedule on application nodes (not system nodes)

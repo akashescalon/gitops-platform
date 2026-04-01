@@ -1,0 +1,150 @@
+# =============================================================================
+# generic-service/values.yaml  — BASE VALUES (defaults for ALL environments)
+# =============================================================================
+# These are the defaults. Environment-specific values files OVERRIDE these.
+# Merge order:  values.yaml  <  values-dev.yaml / values-staging.yaml / values-prod.yaml
+
+# ------------------------------------------------------------------------------
+# Image configuration — overridden by CI/CD pipeline per deployment
+# ------------------------------------------------------------------------------
+image:
+  repository: ""          # e.g. 123456789.dkr.ecr.us-east-1.amazonaws.com/user-service
+  tag: "latest"           # CI pipeline updates this on every build
+  pullPolicy: IfNotPresent
+
+# ------------------------------------------------------------------------------
+# Service identity
+# ------------------------------------------------------------------------------
+nameOverride: ""
+fullnameOverride: ""
+
+serviceName: ""           # e.g. user-service  (required, set per app)
+environment: ""           # dev | staging | prod  (set in env values file)
+
+# ------------------------------------------------------------------------------
+# Replica count — env files override this
+# ------------------------------------------------------------------------------
+replicaCount: 1
+
+# ------------------------------------------------------------------------------
+# Kubernetes Service
+# ------------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+# ------------------------------------------------------------------------------
+# Container resources — always set limits in prod
+# ------------------------------------------------------------------------------
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+# ------------------------------------------------------------------------------
+# Horizontal Pod Autoscaler
+# ------------------------------------------------------------------------------
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ------------------------------------------------------------------------------
+# Health checks
+# ------------------------------------------------------------------------------
+livenessProbe:
+  enabled: true
+  path: /health/live
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  path: /health/ready
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  failureThreshold: 3
+
+# ------------------------------------------------------------------------------
+# Ingress
+# ------------------------------------------------------------------------------
+ingress:
+  enabled: false
+  className: "alb"
+  annotations: {}
+  hosts: []
+  tls: []
+
+# ------------------------------------------------------------------------------
+# Service Account & IRSA (IAM Roles for Service Accounts)
+# ------------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  annotations: {}       # Set eks.amazonaws.com/role-arn here for IRSA
+  name: ""
+
+# ------------------------------------------------------------------------------
+# Environment variables injected into the container
+# ------------------------------------------------------------------------------
+env: []
+# - name: LOG_LEVEL
+#   value: "info"
+# - name: DB_HOST
+#   valueFrom:
+#     secretKeyRef:
+#       name: db-secret
+#       key: host
+
+# ------------------------------------------------------------------------------
+# External Secrets (AWS Secrets Manager / SSM Parameter Store)
+# ------------------------------------------------------------------------------
+externalSecrets:
+  enabled: false
+  secrets: []
+  # - name: db-credentials
+  #   remoteRef:
+  #     key: /prod/user-service/db
+
+# ------------------------------------------------------------------------------
+# Pod-level settings
+# ------------------------------------------------------------------------------
+podAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# ------------------------------------------------------------------------------
+# Node scheduling
+# ------------------------------------------------------------------------------
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# ------------------------------------------------------------------------------
+# ConfigMap for app config
+# ------------------------------------------------------------------------------
+configMap:
+  enabled: false
+  data: {}
+
+# ------------------------------------------------------------------------------
+# PodDisruptionBudget
+# ------------------------------------------------------------------------------
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
